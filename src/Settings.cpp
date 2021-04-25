@@ -42,4 +42,4 @@ void Settings::update() {
         Serial.println(checksum[0]);
         Serial.println(::checksum(this));
     }
- 
+} 

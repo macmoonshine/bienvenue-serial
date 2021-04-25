@@ -113,8 +113,9 @@ void setup() {
     Serial.begin(115200);
     EEPROM.begin(sizeof(settings));
     readSettings();
-    if(settings.check() && connect(true)) {
-        Serial.println("Connected");
+    if(settings.check() && connect(false)) {
+        MDNS.addService(settings.name, "rxtx", "tcp", kPort);
+        server.begin();
     }
     else {
         Serial.println("Invalid settings.");
@@ -124,24 +125,22 @@ void setup() {
             delay(1000);
         }
     }
-    server.begin();
-    MDNS.addService("rxtx", "tcp", kPort);
+}
+
+void transfer(Stream &input, Stream &output) {
+    while(input.available()) {
+        char c = input.read();
+
+        output.write(c);
+    }
+    output.flush();
 }
 
 void handleClient(WiFiClient &client) {
-    String line;
-
-    do {
-        if(client.available()) {
-            line = client.readStringUntil('\n');
-            Serial.print("Received: ");
-            Serial.println(line);
-        }
-        if(Serial.available()) {
-
-        }
+    while(client.connected()) {
+        transfer(client, Serial);
+        transfer(Serial, client);
     }
-    while(client.connected() && line != "exit");
 }
 
 void loop() {
@@ -150,9 +149,7 @@ void loop() {
     WiFiClient client = server.available();
 
     if(client.connected()) {
-        Serial.println("Connected");
         handleClient(client);
-        Serial.println("Disconnected");
     }
     delay(500);
 }
