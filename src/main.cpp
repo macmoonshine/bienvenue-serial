@@ -3,17 +3,23 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <WiFiClient.h>
+#include <SoftwareSerial.h>
 #include "Settings.h"
 
+const Settings::Text kService = "cnc";
 const uint16_t kPort = 2345;
+const uint32_t kBaudRate = 115200;
 
 #define LED1 D3
 #define LED2 D4
-#define MODE D7
+#define MODE D5
 
 int modePin = LOW;
-Settings settings("", "", "", kPort, 115200);
+Settings settings("", "", "", kService, kPort, kBaudRate);
 WiFiServer server(kPort);
+SoftwareSerial softwareSerial;
+
+Stream *serialStream = NULL;
 
 void readSettings() {
     EEPROM.get(0, settings);
@@ -114,34 +120,34 @@ int enterInt(Stream &stream, const char *label, int length = 10) {
             char c = stream.read();
 
             switch (c) {
-            case '\n':
-            case '\r':
-                return sign * value;
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                stream.print(c);
-                stream.flush();
-                value *= 10;
-                value += c - '0';
-                ++index;
-                break;
-            case '-':
-                if(index == 0) {
+                case '\n':
+                case '\r':
+                    return sign * value;
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
                     stream.print(c);
                     stream.flush();
-                    sign = -1;
-                }
-                break;
-            default:
-                break;
+                    value *= 10;
+                    value += c - '0';
+                    ++index;
+                    break;
+                case '-':
+                    if(index == 0) {
+                        stream.print(c);
+                        stream.flush();
+                        sign = -1;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
         else {
@@ -206,6 +212,9 @@ void configure(Stream &stream) {
                 case 'b':
                     settings.baud = enterInt(stream, "Baud Rate: ");
                     break;
+                case 'm':
+                    enterText(stream, "mDNS Service: ", settings.mDNSService);
+                    break;
                 case 'n':
                     enterText(stream, "Name: ", settings.name);
                     break;
@@ -241,6 +250,8 @@ void configure(Stream &stream) {
                     break;
                 case 'X':
                     settings.clear();
+                    settings.port = kPort;
+                    settings.baud = kBaudRate;
                     break;
                 default:
                     redraw = false;
@@ -266,19 +277,17 @@ void waitForRestart(Stream &stream) {
 void setup() {
     Stream &stream = Serial;
 
+    EEPROM.begin(sizeof(settings));
     pinMode(LED1, OUTPUT);
     pinMode(LED2, OUTPUT);
     pinMode(MODE, INPUT);
     digitalWrite(LED1, LOW);
     digitalWrite(LED2, LOW);
-    Serial.begin(115200);
-    EEPROM.begin(sizeof(settings));
     readSettings();
+    Serial.begin(kBaudRate);
     delay(1000);
-    Serial.print("PIN: ");
-    Serial.println(digitalRead(MODE));
     if(settings.check() && startWLAN()) {
-        MDNSResponder::hMDNSService service = MDNS.addService(settings.name, "cnc", "tcp", kPort);
+        MDNSResponder::hMDNSService service = MDNS.addService(settings.name, "cnc", "tcp", settings.port);
 
         digitalWrite(LED1, HIGH);
         MDNS.addServiceTxt(service, "model", "esp8266");
@@ -286,6 +295,15 @@ void setup() {
         server.begin();
         digitalWrite(LED2, HIGH);
         modePin = digitalRead(MODE);
+        if(settings.useDefaultSerial()) {
+            Serial.end();
+            Serial.begin(settings.baud);
+            serialStream = &Serial;
+        }
+        else {
+            softwareSerial.begin(settings.baud, SWSERIAL_8N1, settings.rx, settings.tx, false);
+            serialStream = &softwareSerial;
+        }
     }
     else {
         stream.println("Invalid settings");
@@ -308,9 +326,9 @@ void transfer(Stream &input, Stream &output) {
 }
 
 void handleClient(WiFiClient &client) {
-    while(client.connected()) {
-        transfer(client, Serial);
-        transfer(Serial, client);
+    while(client.connected() && serialStream) {
+        transfer(client, *serialStream);
+        transfer(*serialStream, client);
     }
 }
 

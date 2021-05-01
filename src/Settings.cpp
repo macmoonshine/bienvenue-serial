@@ -10,7 +10,7 @@ void _print(Print &out, char key, const char *title, T value) {
     out.print(key);
     out.print(") ");
     out.print(title);
-    for(int i = strlen(title); i < 8; ++i) {
+    for(int i = strlen(title); i < 12; ++i) {
         out.print(" ");
     }
     out.print(": ");
@@ -46,6 +46,7 @@ void Settings::clear() {
     memset(name, 0, kTextSize);
     memset(ssid, 0, kTextSize);
     memset(password, 0, kTextSize);
+    memset(mDNSService, 0, kTextSize);
     port = 2345;
     baud = 9600;
     rx = -1;
@@ -80,6 +81,7 @@ void Settings::print(Print &out) const {
     _print(out, 'n', "Name", name);
     _print(out, 's', "SSID", ssid);
     _print(out, 'P', "Password", "******");
+    _print(out, 'm', "mDNS Service", mDNSService);
     _print(out, 'b', "Baud", baud);
     _print(out, 'p', "Port", port);
     _print(out, 'r', "RX", rx);
