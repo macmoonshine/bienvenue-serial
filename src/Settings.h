@@ -1,21 +1,24 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include <ESP8266mDNS.h>
 
-#define kStringSize 32
+#define kTextSize 32
 
 
 struct Settings {
     public:
-        typedef char Text[kStringSize];
+        typedef char Text[kTextSize];
 
         Text name;
         Text ssid;
         Text password;
+        uint16_t port;
         uint32_t baud;
         int8_t rx;
         int8_t tx;
 
-        Settings(const Text name, const Text ssid, const Text password, uint32_t baud, int8_t rx = -1, int8_t tx = -1) {
+        Settings(const Text name, const Text ssid, const Text password, 
+                 uint16_t port = 2480, uint32_t baud = 115200, int8_t rx = -1, int8_t tx = -1) {
             strncpy(this->name, name, sizeof(Text) - 1);
             strncpy(this->ssid, ssid, sizeof(Text) - 1);
             strncpy(this->password, password, sizeof(Text) - 1);
@@ -26,8 +29,12 @@ struct Settings {
             checksum[1] = 0;
         }
         
-        bool check();
+        bool check() const;
+        void clear();
         void update();
+        void applyTxtRecord(MDNSResponder::hMDNSService service) const;
+
+        void print(Print &out) const;
     private:
         int8_t checksum[2];
 };
