@@ -10,9 +10,10 @@ const Settings::Text kService = "cnc";
 const uint16_t kPort = 2345;
 const uint32_t kBaudRate = 115200;
 
-#define LED1 D3
-#define LED2 D4
+#define LED1 D4
+#define LED2 D3
 #define MODE D5
+#define RESET D8
 
 int modePin = LOW;
 Settings settings("", "", "", kService, kPort, kBaudRate);
@@ -295,20 +296,25 @@ void setup() {
         server.begin();
         digitalWrite(LED2, HIGH);
         modePin = digitalRead(MODE);
-        if(settings.useDefaultSerial()) {
-            Serial.end();
-            Serial.begin(settings.baud);
-            serialStream = &Serial;
-        }
-        else {
-            softwareSerial.begin(settings.baud, SWSERIAL_8N1, settings.rx, settings.tx, false);
-            serialStream = &softwareSerial;
-        }
+        serialStream = NULL;
+        Serial.end();
     }
     else {
         stream.println("Invalid settings");
         configure(stream);
         waitForRestart(stream);
+    }
+}
+
+void setupSerial() {
+    if(settings.useDefaultSerial()) {
+        Serial.end();
+        Serial.begin(settings.baud);
+        serialStream = &Serial;
+    }
+    else {
+        softwareSerial.begin(settings.baud, SWSERIAL_8N1, settings.rx, settings.tx, false);
+        serialStream = &softwareSerial;
     }
 }
 
@@ -326,10 +332,15 @@ void transfer(Stream &input, Stream &output) {
 }
 
 void handleClient(WiFiClient &client) {
+    setupSerial();
     while(client.connected() && serialStream) {
-        transfer(client, *serialStream);
         transfer(*serialStream, client);
+        transfer(client, *serialStream);
     }
+    if(serialStream) {
+        softwareSerial.end();
+    }
+    serialStream = NULL;
 }
 
 void loop() {
@@ -344,6 +355,7 @@ void loop() {
     }
     else if(modePin != digitalRead(MODE)) {
         disconnect();
+        Serial.begin(kBaudRate);
         configure(Serial);
         waitForRestart(Serial);
     }
