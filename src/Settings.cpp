@@ -49,8 +49,12 @@ void Settings::clear() {
     memset(mDNSService, 0, kTextSize);
     port = 2345;
     baud = 9600;
-    rx = -1;
-    tx = -1;
+    rx = kNoPin;
+    tx = kNoPin;
+    dtr = kNoPin;
+    dsr = kNoPin;
+    rts = kNoPin;
+    cts = kNoPin;
 }
 
 void Settings::update() {
@@ -86,4 +90,8 @@ void Settings::print(Print &out) const {
     _print(out, 'p', "Port", port);
     _print(out, 'r', "RX", rx);
     _print(out, 't', "TX", tx);
+    _print(out, '1', "DTR", dtr);
+    _print(out, '2', "DSR", dsr);
+    _print(out, '3', "RTS", rts);
+    _print(out, '4', "CTS", cts);
 }

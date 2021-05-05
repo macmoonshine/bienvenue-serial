@@ -3,10 +3,11 @@
 #include <ESP8266mDNS.h>
 
 #define kTextSize 32
-
+#define kNoPin -1
 
 struct Settings {
     public:
+        typedef int8_t pin;
         typedef char Text[kTextSize];
 
         Text name;
@@ -15,11 +16,16 @@ struct Settings {
         Text mDNSService;
         uint16_t port;
         uint32_t baud;
-        int8_t rx;
-        int8_t tx;
+        pin rx;
+        pin tx;
+        pin dtr;
+        pin dsr;
+        pin rts;
+        pin cts;
 
         Settings(const Text name, const Text ssid, const Text password, const Text mDNSService,
-                 uint16_t port = 2480, uint32_t baud = 115200, int8_t rx = -1, int8_t tx = -1) {
+                 uint16_t port = 2345, uint32_t baud = 115200, pin rx = kNoPin, pin tx = kNoPin,
+                 pin dtr = kNoPin, pin dsr = kNoPin, pin rts = kNoPin, pin cts = kNoPin) {
             strncpy(this->name, name, sizeof(Text) - 1);
             strncpy(this->ssid, ssid, sizeof(Text) - 1);
             strncpy(this->password, password, sizeof(Text) - 1);
@@ -27,6 +33,10 @@ struct Settings {
             this->baud = baud;
             this->rx = rx;
             this->tx = tx;
+            this->dtr = dtr;
+            this->dsr = dsr;
+            this->rts = rts;
+            this->cts = cts;
             checksum[0] = 0;
             checksum[1] = 0;
         }

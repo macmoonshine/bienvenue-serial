@@ -163,6 +163,7 @@ void disconnect() {
     MDNS.end();
     WiFi.disconnect(true);
 }
+
 bool checkSettings(Print &out) {
     if(startWLAN(&out)) {
         disconnect();
@@ -197,7 +198,7 @@ void configure(Stream &stream) {
     while(true) {
         if(redraw) {
             settings.print(stream);
-            stream.println("C) Check WLAN Q) Quit R) Read W) Write X) Clear");
+            stream.println("q) Quit   C) Check WLAN   R) Read   W) Write   X) Clear");
             stream.println();
             redraw = false;
         }
@@ -209,6 +210,18 @@ void configure(Stream &stream) {
                 case '\r':
                 case '\n':
                 case ' ':
+                    break;
+                case '1':
+                    settings.dtr = enterInt(stream, "DTR: ", 2);
+                    break;
+                case '2':
+                    settings.dsr = enterInt(stream, "DSR: ", 2);
+                    break;
+                case '3':
+                    settings.rts = enterInt(stream, "RTS: ", 2);
+                    break;
+                case '4':
+                    settings.cts = enterInt(stream, "CTS: ", 2);
                     break;
                 case 'b':
                     settings.baud = enterInt(stream, "Baud Rate: ");
@@ -222,6 +235,9 @@ void configure(Stream &stream) {
                 case 'p':
                     settings.port = enterInt(stream, "Port: ", 5);
                     break;
+                case 'q':
+                    stream.println("Quit settings...");
+                    return;
                 case 'r':
                     settings.rx = enterInt(stream, "Rx Pin: ", 2);
                     break;
@@ -238,9 +254,6 @@ void configure(Stream &stream) {
                 case 'P':
                     enterText(stream, "Password: ", settings.password, true);
                     break;
-                case 'Q':
-                    stream.println("Quit settings...");
-                    return;
                 case 'R':
                     stream.println("Read settings...");
                     readSettings();
@@ -275,16 +288,24 @@ void waitForRestart(Stream &stream) {
     }
 }
 
-void setup() {
-    Stream &stream = Serial;
-
-    EEPROM.begin(sizeof(settings));
+void setupPins() {
     pinMode(LED1, OUTPUT);
     pinMode(LED2, OUTPUT);
     pinMode(MODE, INPUT);
     digitalWrite(LED1, LOW);
     digitalWrite(LED2, LOW);
+    if(settings.dtr >= 0) {
+        pinMode(settings.dtr, OUTPUT);
+        digitalWrite(settings.dtr, HIGH);
+    }
+}
+
+void setup() {
+    Stream &stream = Serial;
+
+    EEPROM.begin(sizeof(settings));
     readSettings();
+    setupPins();
     Serial.begin(kBaudRate);
     delay(1000);
     if(settings.check() && startWLAN()) {
@@ -306,7 +327,17 @@ void setup() {
     }
 }
 
+void sendReset() {
+    if(settings.dtr >= 0) {
+        digitalWrite(settings.dtr, LOW);
+        delay(10);
+        digitalWrite(settings.dtr, HIGH);
+        delay(10);
+    }
+}
+
 void setupSerial() {
+    sendReset();
     if(settings.useDefaultSerial()) {
         Serial.end();
         Serial.begin(settings.baud);
