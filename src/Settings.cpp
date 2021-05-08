@@ -4,17 +4,26 @@
 const size_t kCheckSize = sizeof(Settings);
 const int16_t kCheckPrime = 127;
 const bool debug = false;
+const char *kWifiModes[] = { "Off", "Station", "Access Point", "Station & Access Point" };
 
+void _spaces(Print &out, int count) {
+    for(int i = 0; i < count; ++i) {
+        out.print(" ");
+    }
+}
 template<class T>
-void _print(Print &out, char key, const char *title, T value) {
+void _print(Print &out, char key, const char *title, T value, bool newline = true) {
     out.print(key);
     out.print(") ");
     out.print(title);
-    for(int i = strlen(title); i < 12; ++i) {
-        out.print(" ");
-    }
+    _spaces(out, 12 - strlen(title));
     out.print(": ");
-    out.println(value);
+    if(newline) {
+        out.println(value);
+    }
+    else {
+        _spaces(out, 16 - out.print(value));
+    }
 }
 
 static int8_t checksum(const void *buffer, const size_t size = kCheckSize) {
@@ -47,6 +56,8 @@ void Settings::clear() {
     memset(ssid, 0, kTextSize);
     memset(password, 0, kTextSize);
     memset(mDNSService, 0, kTextSize);
+    wifiMode = WIFI_STA;
+    address = 0;
     port = 2345;
     baud = 9600;
     rx = kNoPin;
@@ -85,13 +96,15 @@ void Settings::print(Print &out) const {
     _print(out, 'n', "Name", name);
     _print(out, 's', "SSID", ssid);
     _print(out, 'P', "Password", "******");
+    _print(out, 'o', "Mode", kWifiModes[wifiMode & 0x3]);
+    _print(out, 'a', "IP Address", ipAddress().toString());
     _print(out, 'm', "mDNS Service", mDNSService);
-    _print(out, 'b', "Baud", baud);
     _print(out, 'p', "Port", port);
-    _print(out, 'r', "RX", rx);
+    _print(out, 'b', "Baud", baud);
+    _print(out, 'r', "RX", rx, false);
     _print(out, 't', "TX", tx);
-    _print(out, '1', "DTR", dtr);
+    _print(out, '1', "DTR", dtr, false);
     _print(out, '2', "DSR", dsr);
-    _print(out, '3', "RTS", rts);
+    _print(out, '3', "RTS", rts, false);
     _print(out, '4', "CTS", cts);
 }

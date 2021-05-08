@@ -1,9 +1,13 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
+#include <ESP8266WiFiType.h>
+#include <IPAddress.h>
 
 #define kTextSize 32
 #define kNoPin -1
+
+extern const char *kWifiModes[];
 
 struct Settings {
     public:
@@ -14,6 +18,8 @@ struct Settings {
         Text ssid;
         Text password;
         Text mDNSService;
+        WiFiMode_t wifiMode;
+        uint32_t address; 
         uint16_t port;
         uint32_t baud;
         pin rx;
@@ -41,8 +47,25 @@ struct Settings {
             checksum[1] = 0;
         }
 
+        const IPAddress ipAddress() const {
+            return IPAddress(address);
+        }
+
+        bool setIPAddress(const IPAddress &address) {
+            if(address.isV4()) {
+                this->address = address;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
         bool useDefaultSerial() {
             return rx < 0;
+        }
+        bool isServer() {
+            return (wifiMode & WIFI_AP) != 0;
         }
         
         bool check() const;

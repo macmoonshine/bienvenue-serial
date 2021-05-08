@@ -19,6 +19,7 @@ int modePin = LOW;
 Settings settings("", "", "", kService, kPort, kBaudRate);
 WiFiServer server(kPort);
 SoftwareSerial softwareSerial;
+IPAddress accessPointNetMask(255, 255, 255, 0);
 
 Stream *serialStream = NULL;
 
@@ -32,7 +33,17 @@ bool writeSettings() {
 }
 
 bool startWLAN(Print *out = NULL) {
-    WiFi.begin(settings.ssid, settings.password);
+    if(settings.isServer()) {
+        IPAddress accessPointIP = settings.ipAddress();
+
+        return WiFi.mode(settings.wifiMode) &&
+            WiFi.softAPConfig(accessPointIP, accessPointIP, accessPointNetMask);
+            WiFi.softAP(settings.ssid, settings.password);
+    }
+    else {
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(settings.ssid, settings.password);
+    }
     if(out) {
         out->println("");
         out->print("Connecting to WiFi(");
@@ -89,6 +100,13 @@ void enterText(Stream &stream, const char *label, Settings::Text value, bool sec
             char c = stream.read();
 
             switch (c) {
+                case '\b':
+                    if(index > 0) {
+                        stream.print(c);
+                        stream.flush();
+                        --index;
+                    }
+                    break;
                 case '\n':
                 case '\r':
                     value[index] = 0;
@@ -121,6 +139,14 @@ int enterInt(Stream &stream, const char *label, int length = 10) {
             char c = stream.read();
 
             switch (c) {
+                case '\b':
+                    if(index > 0) {
+                        stream.print(c);
+                        stream.flush();
+                        --index;
+                        value /= 10;
+                    }
+                    break;
                 case '\n':
                 case '\r':
                     return sign * value;
@@ -159,6 +185,45 @@ int enterInt(Stream &stream, const char *label, int length = 10) {
     return sign * value;
 }
 
+WiFiMode_t enterMode(Stream &stream) {
+    const char *separator = " (";
+    clearStream(stream);
+    stream.print("Wifi Mode");
+    for(int i = 0; i < 4; ++i) {
+        stream.print(separator);
+        stream.print(i);
+        stream.print(". ");
+        stream.print(kWifiModes[i]);
+        separator = ", ";
+    }
+    stream.print("): ");
+    stream.flush();
+    while(true) {
+        if(stream.available()) {
+            char c = stream.read();
+
+            switch (c) {
+                case '\n':
+                case '\r':
+                    stream.println();
+                    return WIFI_OFF;
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                    stream.println(c);
+                    return WiFiMode_t(c - '0');
+                default:
+                    break;
+            }
+        }
+        else {
+            delay(200);
+        }
+    }
+    return WIFI_OFF;
+}
+
 void disconnect() {
     MDNS.end();
     WiFi.disconnect(true);
@@ -193,6 +258,8 @@ void checkAndWriteSettings(Print &out) {
 
 void configure(Stream &stream) {
     bool redraw = true;
+    char buffer[128];
+    IPAddress ipAddress(0);
 
     clearStream(stream);
     while(true) {
@@ -223,6 +290,12 @@ void configure(Stream &stream) {
                 case '4':
                     settings.cts = enterInt(stream, "CTS: ", 2);
                     break;
+                case 'a':
+                    enterText(stream, "IP Address: ", buffer);
+                    if(ipAddress.fromString(buffer)) {
+                        settings.setIPAddress(ipAddress);
+                    }
+                    break;
                 case 'b':
                     settings.baud = enterInt(stream, "Baud Rate: ");
                     break;
@@ -231,6 +304,9 @@ void configure(Stream &stream) {
                     break;
                 case 'n':
                     enterText(stream, "Name: ", settings.name);
+                    break;
+                case 'o':
+                    settings.wifiMode = enterMode(stream);
                     break;
                 case 'p':
                     settings.port = enterInt(stream, "Port: ", 5);
@@ -318,7 +394,9 @@ void setup() {
         digitalWrite(LED2, HIGH);
         modePin = digitalRead(MODE);
         serialStream = NULL;
-        Serial.end();
+        if(settings.useDefaultSerial()) {
+            Serial.end();
+        }
     }
     else {
         stream.println("Invalid settings");
@@ -387,6 +465,11 @@ void loop() {
     else if(modePin != digitalRead(MODE)) {
         disconnect();
         Serial.begin(kBaudRate);
+        configure(Serial);
+        waitForRestart(Serial);
+    }
+    else if(!settings.useDefaultSerial() && Serial.available() &&
+        Serial.read() == 'x') {
         configure(Serial);
         waitForRestart(Serial);
     }
