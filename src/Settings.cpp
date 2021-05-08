@@ -1,3 +1,19 @@
+/*
+Copyright 2021 macoonshine
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 #include "Settings.h"
 #include <EEPROM.h>
 
@@ -56,6 +72,7 @@ void Settings::clear() {
     memset(ssid, 0, kTextSize);
     memset(password, 0, kTextSize);
     memset(mDNSService, 0, kTextSize);
+    modePin = D5;
     wifiMode = WIFI_STA;
     address = 0;
     port = 2345;
@@ -86,6 +103,7 @@ void Settings::applyTxtRecord(MDNSResponder::hMDNSService service) const {
     Text buffer;
 
     MDNS.addServiceTxt(service, "ssid", ssid);
+    MDNS.addServiceTxt(service, "modePin", modePin);
     MDNS.addServiceTxt(service, "baud", itoa(baud, buffer, 10));
     MDNS.addServiceTxt(service, "port", itoa(port, buffer, 10));
     MDNS.addServiceTxt(service, "rx", itoa(rx, buffer, 10));
@@ -96,8 +114,11 @@ void Settings::print(Print &out) const {
     _print(out, 'n', "Name", name);
     _print(out, 's', "SSID", ssid);
     _print(out, 'P', "Password", "******");
+    _print(out, 'd', "Mode Pin", modePin);
+#ifdef ACCESS_POINT
     _print(out, 'o', "Mode", kWifiModes[wifiMode & 0x3]);
     _print(out, 'a', "IP Address", ipAddress().toString());
+#endif
     _print(out, 'm', "mDNS Service", mDNSService);
     _print(out, 'p', "Port", port);
     _print(out, 'b', "Baud", baud);

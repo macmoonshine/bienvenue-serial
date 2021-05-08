@@ -1,3 +1,19 @@
+/*
+Copyright 2021 macoonshine
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
@@ -12,11 +28,10 @@ const uint32_t kBaudRate = 115200;
 
 #define LED1 D4
 #define LED2 D3
-#define MODE D5
 #define RESET D8
 
 int modePin = LOW;
-Settings settings("", "", "", kService, kPort, kBaudRate);
+Settings settings("", "", "", kService, D5, kPort, kBaudRate);
 WiFiServer server(kPort);
 SoftwareSerial softwareSerial;
 IPAddress accessPointNetMask(255, 255, 255, 0);
@@ -33,6 +48,7 @@ bool writeSettings() {
 }
 
 bool startWLAN(Print *out = NULL) {
+#ifdef ACCESS_POINT
     if(settings.isServer()) {
         IPAddress accessPointIP = settings.ipAddress();
 
@@ -44,6 +60,9 @@ bool startWLAN(Print *out = NULL) {
         WiFi.mode(WIFI_STA);
         WiFi.begin(settings.ssid, settings.password);
     }
+#else
+    WiFi.begin(settings.ssid, settings.password);
+#endif
     if(out) {
         out->println("");
         out->print("Connecting to WiFi(");
@@ -258,8 +277,6 @@ void checkAndWriteSettings(Print &out) {
 
 void configure(Stream &stream) {
     bool redraw = true;
-    char buffer[128];
-    IPAddress ipAddress(0);
 
     clearStream(stream);
     while(true) {
@@ -290,12 +307,21 @@ void configure(Stream &stream) {
                 case '4':
                     settings.cts = enterInt(stream, "CTS: ", 2);
                     break;
-                case 'a':
+#ifdef ACCESS_POINT
+                case 'a': {
+                    char buffer[128];
+                    IPAddress ipAddress(0);
+
                     enterText(stream, "IP Address: ", buffer);
                     if(ipAddress.fromString(buffer)) {
                         settings.setIPAddress(ipAddress);
                     }
                     break;
+                }
+                case 'd':
+                    settings.wifiMode = enterMode(stream);
+                    break;
+#endif
                 case 'b':
                     settings.baud = enterInt(stream, "Baud Rate: ");
                     break;
@@ -306,7 +332,7 @@ void configure(Stream &stream) {
                     enterText(stream, "Name: ", settings.name);
                     break;
                 case 'o':
-                    settings.wifiMode = enterMode(stream);
+                    settings.modePin = enterInt(stream, "Mode Pin: ", 2);
                     break;
                 case 'p':
                     settings.port = enterInt(stream, "Port: ", 5);
@@ -367,7 +393,9 @@ void waitForRestart(Stream &stream) {
 void setupPins() {
     pinMode(LED1, OUTPUT);
     pinMode(LED2, OUTPUT);
-    pinMode(MODE, INPUT);
+    if(settings.checkModePin()) {
+        pinMode(settings.modePin, INPUT);
+    }
     digitalWrite(LED1, LOW);
     digitalWrite(LED2, LOW);
     if(settings.dtr >= 0) {
@@ -392,7 +420,9 @@ void setup() {
         settings.applyTxtRecord(service);
         server.begin();
         digitalWrite(LED2, HIGH);
-        modePin = digitalRead(MODE);
+        if(settings.checkModePin()) {
+            modePin = digitalRead(settings.modePin);
+        }
         serialStream = NULL;
         if(settings.useDefaultSerial()) {
             Serial.end();
@@ -462,9 +492,9 @@ void loop() {
         handleClient(client);
         digitalWrite(LED1, HIGH);
     }
-    else if(modePin != digitalRead(MODE)) {
+    else if(settings.checkModePin() && modePin != digitalRead(settings.modePin)) {
         disconnect();
-        Serial.begin(kBaudRate);
+        Serial.begin(settings.baud);
         configure(Serial);
         waitForRestart(Serial);
     }
