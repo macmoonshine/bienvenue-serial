@@ -49,7 +49,7 @@ static int8_t checksum(const void *buffer, const size_t size = kCheckSize) {
         const int16_t sign = 1 + (i % 2);
         const int16_t value = static_cast<const char *>(buffer)[i];
 
-        if(debug && i > 96) {
+        if(debug && i > size - 8) {
             Serial.print(i);
             Serial.print(": ");
             Serial.print(sign);
@@ -64,7 +64,15 @@ static int8_t checksum(const void *buffer, const size_t size = kCheckSize) {
 }
 
 bool Settings::check() const {
-    return checksum[1] == kCheckPrime && ::checksum(this) == 0;
+    const int8_t sum = ::checksum(this);
+
+    if(debug) {
+        Serial.print("check(): ");
+        Serial.print((int) checksum[1]);
+        Serial.print(", ");
+        Serial.println((int) sum);
+    }
+    return checksum[1] == kCheckPrime && sum == 0;
 }
 
 void Settings::clear() {
@@ -72,17 +80,14 @@ void Settings::clear() {
     memset(ssid, 0, kTextSize);
     memset(password, 0, kTextSize);
     memset(mDNSService, 0, kTextSize);
-    modePin = D5;
     wifiMode = WIFI_STA;
     address = 0;
     port = 2345;
     baud = 9600;
     rx = kNoPin;
     tx = kNoPin;
-    dtr = kNoPin;
-    dsr = kNoPin;
-    rts = kNoPin;
-    cts = kNoPin;
+    reset = D0;
+    modePin = D0;
 }
 
 void Settings::update() {
@@ -108,24 +113,22 @@ void Settings::applyTxtRecord(MDNSResponder::hMDNSService service) const {
     MDNS.addServiceTxt(service, "port", itoa(port, buffer, 10));
     MDNS.addServiceTxt(service, "rx", itoa(rx, buffer, 10));
     MDNS.addServiceTxt(service, "tx", itoa(tx, buffer, 10));
+    MDNS.addServiceTxt(service, "reset", itoa(reset, buffer, 10));
 }
 
 void Settings::print(Print &out) const {
     _print(out, 'n', "Name", name);
     _print(out, 's', "SSID", ssid);
-    _print(out, 'P', "Password", "******");
-    _print(out, 'd', "Mode Pin", modePin);
+    _print(out, 'P', "Password", strlen(password) == 0 ? "" : "******");
 #ifdef ACCESS_POINT
-    _print(out, 'o', "Mode", kWifiModes[wifiMode & 0x3]);
+    _print(out, 'd', "Mode", kWifiModes[wifiMode & 0x3]);
     _print(out, 'a', "IP Address", ipAddress().toString());
 #endif
     _print(out, 'm', "mDNS Service", mDNSService);
     _print(out, 'p', "Port", port);
     _print(out, 'b', "Baud", baud);
-    _print(out, 'r', "RX", rx, false);
+    _print(out, 'r', "RX", rx);
     _print(out, 't', "TX", tx);
-    _print(out, '1', "DTR", dtr, false);
-    _print(out, '2', "DSR", dsr);
-    _print(out, '3', "RTS", rts, false);
-    _print(out, '4', "CTS", cts);
+    _print(out, 'x', "Reset", reset);
+    _print(out, 'o', "Mode Pin", modePin);
 }

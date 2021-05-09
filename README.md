@@ -18,23 +18,23 @@ The settings show an overview of all parameters:
 
     s) SSID        : WLAN
     P) Password    : ******
-    o) Mode Pin    : 14
     m) mDNS Service: cnc
     p) Port        : 2345
     b) Baud        : 115200
-    r) RX          : 13              t) TX          : 12
-    1) DTR         : 15              2) DSR         : -1
-    3) RTS         : -1              4) CTS         : -1
+    r) RX          : 13
+    t) TX          : 12
+    x) Reset       : 14
+    o) Mode Pin    : 16
     q) Quit   C) Check WLAN   R) Read   W) Write   X) Clear
     
 Press the key with the character in front of a setting to change its value. There are the following parameters:
 
 * SSID and Password: The name and the password of the wlan to which the program should connect.
-* Mode Pin: When a level change occurs at this pin, the program switches to the setting mode (-1 means: do not use).
 * mDNS Service: The service name for mDNS.
 * Port: The TCP/IP port for WLAN connections.
 * Baud: The baud rate of the serial port.
-* RX, TX, DTR, DSR, RTS, CTS: The pins used for the corresponding serial signals (-1 means: do not use). DSR, RTS, and CTS are not supported yet.
+* RX, TX, Reset: The pins used for the corresponding serial signals (-1 means: do not use). 
+* Mode Pin: When a level change occurs at this pin, the program switches to the setting mode (-1 means: do not use).
 
 The last row in the settings overview contains some function keys:
 
@@ -58,9 +58,9 @@ For the settings shown above, the circuit looks like this:
   <img src="images/BevenueSerialCustom.png" width="640"/>
 </p>
 
-### Use of the DTR signal
+### Use of the Reset signal
 
-The DTR signal can be used to reset the end device (e.g. the CNC control) before the connection is established. To do this, you must connect the pin to which the DTR signal is sent to the reset pin of the end device.
+The Reset signal can be used to reset the end device (e.g. the CNC control) before the connection is established. To do this, you must connect the pin to which the reset signal is sent to the reset pin of the end device.
 
 ## Peer to peer connections
 

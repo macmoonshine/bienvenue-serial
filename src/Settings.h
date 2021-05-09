@@ -34,35 +34,29 @@ struct Settings {
         Text ssid;
         Text password;
         Text mDNSService;
-        pin modePin;
         WiFiMode_t wifiMode;
         uint32_t address; 
         uint16_t port;
         uint32_t baud;
         pin rx;
         pin tx;
-        pin dtr;
-        pin dsr;
-        pin rts;
-        pin cts;
+        pin reset;
+        pin modePin;
+        pin reserved[2]; // needed for alignment
+        int8_t checksum[2];
 
         Settings(const Text name, const Text ssid, const Text password, const Text mDNSService,
-                 pin modePin = D5, uint16_t port = 2345, uint32_t baud = 115200,
-                 pin rx = kNoPin, pin tx = kNoPin,
-                 pin dtr = kNoPin, pin dsr = kNoPin,
-                 pin rts = kNoPin, pin cts = kNoPin) {
+                 uint16_t port = 2345, uint32_t baud = 115200,
+                 pin rx = kNoPin, pin tx = kNoPin, pin reset = D5, pin modePin = D0) {
             strncpy(this->name, name, sizeof(Text) - 1);
             strncpy(this->ssid, ssid, sizeof(Text) - 1);
             strncpy(this->password, password, sizeof(Text) - 1);
             strncpy(this->mDNSService, mDNSService, sizeof(Text) - 1);
-            this->modePin = modePin;
             this->baud = baud;
             this->rx = rx;
             this->tx = tx;
-            this->dtr = dtr;
-            this->dsr = dsr;
-            this->rts = rts;
-            this->cts = cts;
+            this->reset = reset;
+            this->modePin = modePin;
             checksum[0] = 0;
             checksum[1] = 0;
         }
@@ -97,6 +91,4 @@ struct Settings {
         void applyTxtRecord(MDNSResponder::hMDNSService service) const;
 
         void print(Print &out) const;
-    private:
-        int8_t checksum[2];
 };

@@ -27,11 +27,9 @@ const uint16_t kPort = 2345;
 const uint32_t kBaudRate = 115200;
 
 #define LED1 D4
-#define LED2 D3
-#define RESET D8
 
 int modePin = LOW;
-Settings settings("", "", "", kService, D5, kPort, kBaudRate);
+Settings settings("", "", "", kService, kPort, kBaudRate);
 WiFiServer server(kPort);
 SoftwareSerial softwareSerial;
 IPAddress accessPointNetMask(255, 255, 255, 0);
@@ -295,18 +293,6 @@ void configure(Stream &stream) {
                 case '\n':
                 case ' ':
                     break;
-                case '1':
-                    settings.dtr = enterInt(stream, "DTR: ", 2);
-                    break;
-                case '2':
-                    settings.dsr = enterInt(stream, "DSR: ", 2);
-                    break;
-                case '3':
-                    settings.rts = enterInt(stream, "RTS: ", 2);
-                    break;
-                case '4':
-                    settings.cts = enterInt(stream, "CTS: ", 2);
-                    break;
 #ifdef ACCESS_POINT
                 case 'a': {
                     char buffer[128];
@@ -318,7 +304,7 @@ void configure(Stream &stream) {
                     }
                     break;
                 }
-                case 'd':
+                case 'o':
                     settings.wifiMode = enterMode(stream);
                     break;
 #endif
@@ -348,6 +334,9 @@ void configure(Stream &stream) {
                     break;
                 case 't':
                     settings.tx = enterInt(stream, "Tx Pin: ", 2);
+                    break;
+                case 'x':
+                    settings.reset = enterInt(stream, "Reset: ", 2);
                     break;
                 case 'C':
                     checkSettings(stream);
@@ -381,26 +370,28 @@ void configure(Stream &stream) {
 }
 
 void waitForRestart(Stream &stream) {
-    stream.println("Please restart controller");
+    clearStream(stream);
+    stream.println("Press any key to reset controller");
     while(true) {
-        digitalWrite(LED2, HIGH);
+        digitalWrite(LED1, HIGH);
         delay(1000);
-        digitalWrite(LED2, LOW);
+        digitalWrite(LED1, LOW);
         delay(1000);
+        if(stream.available()) {
+            ESP.reset();
+        }
     }
 }
 
 void setupPins() {
     pinMode(LED1, OUTPUT);
-    pinMode(LED2, OUTPUT);
     if(settings.checkModePin()) {
         pinMode(settings.modePin, INPUT);
     }
     digitalWrite(LED1, LOW);
-    digitalWrite(LED2, LOW);
-    if(settings.dtr >= 0) {
-        pinMode(settings.dtr, OUTPUT);
-        digitalWrite(settings.dtr, HIGH);
+    if(settings.reset >= 0) {
+        pinMode(settings.reset, OUTPUT);
+        digitalWrite(settings.reset, HIGH);
     }
 }
 
@@ -419,7 +410,6 @@ void setup() {
         MDNS.addServiceTxt(service, "model", "esp8266");
         settings.applyTxtRecord(service);
         server.begin();
-        digitalWrite(LED2, HIGH);
         if(settings.checkModePin()) {
             modePin = digitalRead(settings.modePin);
         }
@@ -436,10 +426,10 @@ void setup() {
 }
 
 void sendReset() {
-    if(settings.dtr >= 0) {
-        digitalWrite(settings.dtr, LOW);
+    if(settings.reset >= 0) {
+        digitalWrite(settings.reset, LOW);
         delay(10);
-        digitalWrite(settings.dtr, HIGH);
+        digitalWrite(settings.reset, HIGH);
         delay(10);
     }
 }
@@ -459,14 +449,12 @@ void setupSerial() {
 
 void transfer(Stream &input, Stream &output) {
     if(input.available()) {
-        digitalWrite(LED2, LOW);
         while(input.available()) {
             char c = input.read();
 
             output.write(c);
         }
         output.flush();
-        digitalWrite(LED2, HIGH);
     }
 }
 
@@ -500,6 +488,7 @@ void loop() {
     }
     else if(!settings.useDefaultSerial() && Serial.available() &&
         Serial.read() == 'x') {
+        clearStream(Serial);
         configure(Serial);
         waitForRestart(Serial);
     }
