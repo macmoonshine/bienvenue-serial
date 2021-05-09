@@ -1,6 +1,7 @@
 # Bienvenue Serial
+is a bridge between WLAN and serial interface running on the ESP8266.
 
-"Bienvenue Serial" is a bridge between WLAN and serial port running on ESP8266. I have developed it to be able to address a Woodpecker CNC control via WLAN. However, it should also be able to address other circuits via the RxTx interface.
+I have developed it to be able to address a Woodpecker CNC control via WLAN. However, it should also be able to address other circuits via the RxTx interface.
 
 
 ## Installation
@@ -28,7 +29,7 @@ The settings show an overview of all parameters:
     
 Press the key with the character in front of a setting to change its value. There are the following parameters:
 
-* SSID and password: The name and the password of the wlan to which the program should connect.
+* SSID and Password: The name and the password of the wlan to which the program should connect.
 * Mode Pin: When a level change occurs at this pin, the program switches to the setting mode (-1 means: do not use).
 * mDNS Service: The service name for mDNS.
 * Port: The TCP/IP port for WLAN connections.
